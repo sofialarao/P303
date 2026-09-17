@@ -1,0 +1,79 @@
+{
+  "order": {
+    "orderId": "AMZ-2048-17",
+    "customerId": "customer-4821",
+    "status": "Delivered",
+    "statusStep": 4,
+    "orderDate": "2026-09-17",
+    "deliveryDate": "2026-09-17",
+    "eta": "Today, 10:45 AM",
+    "carrier": "Amazon Delivery",
+    "trackingNumber": "1Z9X8A32",
+    "deliveryAddress": "123 Placeholder Street, Seattle, WA",
+    "productName": "Placeholder Product",
+    "productCategory": "Home Essentials",
+    "price": "$59.99"
+  },
+  "deliveryStatus": {
+    "steps": [
+      { "label": "Ordered confirmed", "state": "complete" },
+      { "label": "Payment confirmed", "state": "complete" },
+      { "label": "Out for delivery", "state": "complete" },
+      { "label": "Delivered", "state": "current" }
+    ]
+  },
+  "survey": {
+    "title": "Share your feedback",
+    "subtitle": "Tell us how your delivery experience was.",
+    "questions": [
+      {
+        "id": "receivedPackage",
+        "text": "Please confirm you have received the package.",
+        "placeholder": "Add a quick note about your delivery experience",
+        "type": "yesNo"
+      },
+      {
+        "id": "expectedOnTime",
+        "text": "Did you get your product on the day it was expected?",
+        "placeholder": "Tell us if the timeline matched your expectation",
+        "type": "yesNo"
+      },
+      {
+        "id": "productCondition",
+        "text": "Was the product in good condition?",
+        "placeholder": "Describe the item condition when it arrived",
+        "type": "yesNo"
+      },
+      {
+        "id": "overallExperience",
+        "text": "How would you describe your overall delivery experience?",
+        "placeholder": "Optional: share your thoughts",
+        "type": "yesNo"
+      }
+    ]
+  },
+  "aiSummary": {
+    "summary": "Customer reported a smooth delivery experience with the product arriving on time and in good condition.",
+    "sentiment": "Positive",
+    "confidence": "High",
+    "keyInsights": [
+      "Delivery arrived as expected",
+      "Product condition met expectations",
+      "Customer is likely to recommend the service"
+    ]
+  },
+  "messaging": {
+    "shareText": "Thank you for your feedback. Your experience review will help 867 people who are looking at this product right now!",
+    "shareUrl": "sms:?&body=Thank%20you%20for%20your%20feedback.%20Your%20experience%20review%20will%20help%20867%20people%20who%20are%20looking%20at%20this%20product%20right%20now!"
+  },
+  "review": {
+    "rating": 5,
+    "comment": "Placeholder review text for the final feedback summary.",
+    "uploadedImage": "",
+    "imageMeta": {
+      "name": "",
+      "size": 0,
+      "type": ""
+    }
+  }
+}
