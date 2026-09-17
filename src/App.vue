@@ -26,6 +26,13 @@ const reviewEntries = computed(() =>
     value: getAnswerLabel(answers.value[question.id] ?? null),
   })),
 )
+const stepperSteps = computed(() =>
+  questions.map((question, index) => ({
+    id: question.id,
+    active: index === currentIndex.value,
+    complete: index < currentIndex.value,
+  })),
+)
 const aiSummary = computed(() => {
   const answered = reviewEntries.value
     .map((entry) => `${entry.label}: ${entry.value}`)
@@ -75,48 +82,46 @@ const getAnswerLabel = (value: 'yes' | 'no' | number | null) => {
 <template>
   <div class="page-shell">
     <div class="app-shell">
-      <header class="top-nav">
-        <button class="nav-icon menu-icon" aria-label="Open menu">
-          <span />
-          <span />
-          <span />
-        </button>
+      <div class="phone-frame">
+        <header class="top-nav">
+          <button class="nav-icon menu-icon" aria-label="Open menu">
+            <span />
+            <span />
+            <span />
+          </button>
 
-        <div class="brand-lockup">
-          <div class="brand-mark">B</div>
-          <span class="brand-text">Box for You</span>
+          <div class="brand-lockup">
+            <div class="brand-mark">B</div>
+            <span class="brand-text">Box for You</span>
+          </div>
+
+          <button class="nav-icon avatar-icon" aria-label="User account">
+            <span class="avatar-circle">U</span>
+          </button>
+        </header>
+
+        <main class="survey-card">
+        <div class="product-header-image">
+          <img src="https://images.unsplash.com/photo-1572635196237-14b3f281503f?auto=format&fit=crop&w=1200&q=80" alt="Ray-Ban style sunglasses product" />
         </div>
 
-        <button class="nav-icon avatar-icon" aria-label="User account">
-          <span class="avatar-circle">U</span>
-        </button>
-      </header>
-
-      <div class="phone-frame">
-        <div class="status-bar">
-          <span>9:41</span>
-          <div class="status-icons">
-            <span class="signal" />
-            <span class="wifi" />
-            <span class="battery" />
+        <div class="product-meta">
+          <h2>Ray-Ban Clubmaster</h2>
+          <p>Polarized sunglasses · Black frame · 100% UV protection</p>
+          <div class="delivery-status">
+            <span class="status-label">Delivered:</span>
+            <span class="status-value">17 September 2026, 8:18am</span>
           </div>
         </div>
 
-        <main class="survey-card">
-        <header class="header-row">
-          <button v-if="currentIndex > 0" class="icon-button" @click="back" aria-label="Back">
-            ‹
-          </button>
-          <div class="header-title">{{ metrics.survey.title }}</div>
-          <div class="header-space" />
-        </header>
-
-        <div class="progress-track">
-          <div class="progress-bar" :style="{ width: `${progress}%` }" />
+        <div class="progress-wrap">
+          <div class="progress-track" aria-label="Survey progress">
+            <div class="progress-bar" :style="{ width: `${progress}%` }" />
+            <span class="progress-marker" :style="{ left: `calc(${progress}% - 7px)` }" aria-hidden="true" />
+          </div>
         </div>
 
         <section class="question-panel">
-          <p class="eyebrow">Delivery update</p>
           <h1>{{ currentQuestion.text }}</h1>
 
           <div v-if="currentQuestion.type === 'rating'" class="answer-group rating-group" role="radiogroup" :aria-label="currentQuestion.text">
@@ -171,34 +176,42 @@ const getAnswerLabel = (value: 'yes' | 'no' | number | null) => {
             />
           </div>
 
-          <div v-else class="answer-group selector-group">
-            <button
+          <div v-else class="answer-group selector-group" role="radiogroup" :aria-label="currentQuestion.text">
+            <label
               class="selector-option"
               :class="{ selected: answers[currentQuestion.id] === 'yes' }"
-              @click="setAnswer('yes')"
             >
               <span class="selector-content">
-                <span class="selector-icon success" :class="{ active: answers[currentQuestion.id] === 'yes' }">
-                  ✓
-                </span>
+                <input
+                  class="radio-input"
+                  type="radio"
+                  :name="currentQuestion.id"
+                  value="yes"
+                  :checked="answers[currentQuestion.id] === 'yes'"
+                  @change="setAnswer('yes')"
+                />
                 <span class="selector-label">Yes</span>
               </span>
-            </button>
-            <button
+            </label>
+            <label
               class="selector-option"
               :class="{ selected: answers[currentQuestion.id] === 'no' }"
-              @click="setAnswer('no')"
             >
               <span class="selector-content">
-                <span class="selector-icon danger" :class="{ active: answers[currentQuestion.id] === 'no' }">
-                  ✕
-                </span>
+                <input
+                  class="radio-input"
+                  type="radio"
+                  :name="currentQuestion.id"
+                  value="no"
+                  :checked="answers[currentQuestion.id] === 'no'"
+                  @change="setAnswer('no')"
+                />
                 <span class="selector-label">No</span>
               </span>
-            </button>
+            </label>
           </div>
 
-          <template v-if="currentQuestion.type !== 'shareExperience'">
+          <template v-if="currentQuestion.type !== 'shareExperience' && answers[currentQuestion.id] !== undefined && answers[currentQuestion.id] !== null">
             <label class="comment-label" :for="`comment-${currentQuestion.id}`">Optional comment</label>
             <textarea
               :id="`comment-${currentQuestion.id}`"
@@ -253,11 +266,12 @@ textarea {
 }
 
 .page-shell {
-  min-height: 100vh;
+  height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 32px;
+  padding: 32px 32px 40px;
+  overflow: hidden;
 }
 
 .app-shell {
@@ -270,9 +284,10 @@ textarea {
   justify-content: space-between;
   padding: 12px 10px 18px;
   background: #ffffff;
-  border-radius: 18px 18px 0 0;
+  border-radius: 0;
   box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
   backdrop-filter: blur(2px);
+  margin-bottom: 24px;
 }
 
 .nav-icon {
@@ -346,75 +361,21 @@ textarea {
 }
 
 .phone-frame {
-  width: min(100%, 430px);
+  width: min(100%, 393px);
+  height: min(852px, calc(100vh - 72px));
+  min-height: 0;
   background: #f7f7f7;
-  border-radius: 0 0 36px 36px;
-  padding: 18px 18px 14px;
+  border-radius: 36px;
+  padding: 0;
+  overflow-y: auto;
   box-shadow: 0 18px 34px rgba(17, 24, 39, 0.08);
-}
-
-.status-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-weight: 600;
-  color: #111827;
-  padding: 4px 8px 12px;
-  font-size: 0.95rem;
-}
-
-.status-icons {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.signal,
-.wifi,
-.battery {
-  display: inline-block;
-  background: #111827;
-  border-radius: 999px;
-}
-
-.signal {
-  width: 18px;
-  height: 10px;
-  clip-path: polygon(0 100%, 20% 100%, 20% 60%, 40% 60%, 40% 30%, 60% 30%, 60% 10%, 80% 10%, 80% 0, 100% 0, 100% 100%);
-}
-
-.wifi {
-  width: 12px;
-  height: 12px;
-  border: 2px solid #111827;
-  border-color: #111827 transparent transparent transparent;
-  border-radius: 50%;
-  transform: rotate(180deg);
-}
-
-.battery {
-  width: 22px;
-  height: 12px;
-  position: relative;
-  border: 2px solid #111827;
-  background: transparent;
-}
-
-.battery::after {
-  content: '';
-  position: absolute;
-  right: -4px;
-  top: 3px;
-  width: 2px;
-  height: 4px;
-  background: #111827;
-  border-radius: 1px;
 }
 
 .survey-card {
   background: #ffffff;
   border-radius: 26px;
-  padding: 16px 18px 18px;
+  margin: 0 24px;
+  padding: 24px 24px 18px;
   box-shadow: inset 0 0 0 1px rgba(17, 24, 39, 0.05);
 }
 
@@ -436,48 +397,125 @@ textarea {
   cursor: pointer;
 }
 
-.header-title {
-  flex: 1;
-  text-align: center;
-  font-weight: 700;
-  font-size: 1.15rem;
-  color: #111827;
-}
-
-.header-space {
-  width: 38px;
-}
-
-.progress-track {
-  height: 6px;
-  border-radius: 999px;
-  background: #e5e7eb;
+.product-header-image {
+  width: 100%;
+  height: 160px;
   overflow: hidden;
+  border-radius: 18px;
+  background: #e5e7eb;
+  margin-bottom: 12px;
+}
+
+.product-header-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.product-meta {
+  text-align: center;
   margin-bottom: 18px;
 }
 
-.progress-bar {
-  height: 100%;
-  background: linear-gradient(90deg, #60a5fa, #2563eb);
-  border-radius: inherit;
+.product-meta h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.3;
+  color: #111827;
 }
+
+.product-meta p {
+  margin: 6px 0 0;
+  font-size: 0.78rem;
+  color: #4b5563;
+  line-height: 1.4;
+}
+
+.delivery-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: #374151;
+  letter-spacing: -0.01em;
+}
+
+.status-label {
+  font-weight: 700;
+  color: #111827;
+}
+
+.status-value {
+  color: #4b5563;
+}
+
+.progress-wrap {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.progress-track {
+  position: relative;
+  height: 1px;
+  border-radius: 0;
+  background: #D1D1D1;
+  overflow: hidden;
+}
+
+.progress-bar {
+  display: none;
+}
+
+.progress-marker {
+  display: none;
+}
+
+.stepper {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+  align-items: center;
+}
+
+.step-node {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #e5e7eb;
+  color: #9ca3af;
+  border: 2px solid transparent;
+  transition: all 0.2s ease;
+  margin: 0 auto;
+}
+
+.step-node.complete,
+.step-node.active {
+  background: #dbeafe;
+  color: #2563eb;
+  border-color: rgba(37, 99, 235, 0.2);
+}
+
+.step-node.active {
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.09);
+}
+
 
 .question-panel {
   padding: 8px 2px 18px;
 }
 
-.eyebrow {
-  margin: 0 0 10px;
-  font-size: 0.8rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #6b7280;
-}
-
 .question-panel h1 {
-  margin: 0 0 18px;
-  font-size: clamp(1.7rem, 4vw, 2.2rem);
-  line-height: 1.12;
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.2;
   color: #111827;
 }
 
@@ -489,75 +527,48 @@ textarea {
 }
 
 .selector-group {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-  margin: 8px 0 22px;
+  display: flex;
+  gap: 24px;
+  margin: 8px 0 18px;
   max-width: 100%;
 }
 
 .selector-option {
   display: flex;
   align-items: center;
-  justify-content: center;
-  min-height: 110px;
-  border: 1px solid #e5e7eb;
-  background: #f3f4f6;
+  justify-content: flex-start;
+  border: none;
+  background: transparent;
   color: #111827;
-  border-radius: 22px;
-  padding: 14px 16px;
+  padding: 4px 0;
   font-weight: 700;
-  font-size: clamp(1rem, 2.2vw, 1.5rem);
+  font-size: 16px;
   cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.selector-option.selected {
-  background: rgba(37, 99, 235, 0.12);
-  color: #2563eb;
-  border-color: rgba(37, 99, 235, 0.18);
-  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.08);
+  transition: color 0.2s ease;
 }
 
 .selector-content {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 14px;
+  justify-content: flex-start;
+  gap: 10px;
   width: 100%;
 }
 
-.selector-icon {
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  font-size: 1.45rem;
-  font-weight: 800;
-  background: rgba(17, 24, 39, 0.08);
-  color: #111827;
-  line-height: 1;
-  transition: all 0.2s ease;
-  flex-shrink: 0;
-}
-
-.selector-icon.success {
-  color: #111827;
-}
-
-.selector-icon.danger {
-  color: #111827;
-}
-
-.selector-option.selected .selector-icon {
-  background: rgba(37, 99, 235, 0.12);
-  color: #2563eb;
+.radio-input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: #2563eb;
 }
 
 .selector-label {
   letter-spacing: -0.02em;
   line-height: 1;
+}
+
+.selector-option.selected {
+  color: #2563eb;
 }
 
 .rating-group {
@@ -712,6 +723,8 @@ textarea {
   background: #f9fafb;
   padding: 12px 14px;
   color: #111827;
+  font-size: 14px;
+  font-style: italic;
 }
 
 textarea:focus {
@@ -831,7 +844,7 @@ textarea:focus {
 
 @media (min-width: 700px) {
   .phone-frame {
-    width: min(100%, 480px);
+    width: min(100%, 393px);
   }
 }
 </style>
