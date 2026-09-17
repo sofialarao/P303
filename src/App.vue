@@ -4,14 +4,37 @@ import metrics from './data/metrics.json'
 
 const questions = metrics.survey.questions
 const currentIndex = ref(0)
-const answers = ref<Record<string, 'yes' | 'no' | null>>({})
+const answers = ref<Record<string, 'yes' | 'no' | number | null>>({})
 const comments = ref<Record<string, string>>({})
+const uploadedImage = ref<string | null>(null)
+const productPhotoName = ref('')
+const starOptions = [1, 2, 3, 4, 5]
 
 const currentQuestion = computed(() => questions[currentIndex.value])
 const isLastStep = computed(() => currentIndex.value === questions.length - 1)
 const progress = computed(() => ((currentIndex.value + 1) / questions.length) * 100)
+const allRequiredAnswered = computed(() =>
+  questions.slice(0, -1).every((question) => {
+    const value = answers.value[question.id]
+    return value !== undefined && value !== null
+  }),
+)
+const reviewEntries = computed(() =>
+  questions.slice(0, -1).map((question) => ({
+    id: question.id,
+    label: question.text,
+    value: getAnswerLabel(answers.value[question.id] ?? null),
+  })),
+)
+const aiSummary = computed(() => {
+  const answered = reviewEntries.value
+    .map((entry) => `${entry.label}: ${entry.value}`)
+    .join(' | ')
 
-const setAnswer = (value: 'yes' | 'no') => {
+  return `${metrics.aiSummary.summary} Review highlights: ${answered}.`
+})
+
+const setAnswer = (value: 'yes' | 'no' | number) => {
   const key = currentQuestion.value.id
   answers.value[key] = value
 }
@@ -26,12 +49,24 @@ const back = () => {
   if (currentIndex.value > 0) currentIndex.value -= 1
 }
 
+const handleImageUpload = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (!file) return
+
+  uploadedImage.value = URL.createObjectURL(file)
+  productPhotoName.value = file.name
+}
+
 const shareFeedback = () => {
   const message = encodeURIComponent(metrics.messaging.shareText)
   window.location.href = `sms:?&body=${message}`
 }
 
-const getAnswerLabel = (value: 'yes' | 'no' | null) => {
+const getAnswerLabel = (value: 'yes' | 'no' | number | null) => {
+  if (typeof value === 'number') {
+    return `${value} star${value === 1 ? '' : 's'}`
+  }
   if (!value) return 'Not answered'
   return value === 'yes' ? 'Yes' : 'No'
 }
@@ -39,17 +74,35 @@ const getAnswerLabel = (value: 'yes' | 'no' | null) => {
 
 <template>
   <div class="page-shell">
-    <div class="phone-frame">
-      <div class="status-bar">
-        <span>9:41</span>
-        <div class="status-icons">
-          <span class="signal" />
-          <span class="wifi" />
-          <span class="battery" />
-        </div>
-      </div>
+    <div class="app-shell">
+      <header class="top-nav">
+        <button class="nav-icon menu-icon" aria-label="Open menu">
+          <span />
+          <span />
+          <span />
+        </button>
 
-      <main class="survey-card">
+        <div class="brand-lockup">
+          <div class="brand-mark">B</div>
+          <span class="brand-text">Box for You</span>
+        </div>
+
+        <button class="nav-icon avatar-icon" aria-label="User account">
+          <span class="avatar-circle">U</span>
+        </button>
+      </header>
+
+      <div class="phone-frame">
+        <div class="status-bar">
+          <span>9:41</span>
+          <div class="status-icons">
+            <span class="signal" />
+            <span class="wifi" />
+            <span class="battery" />
+          </div>
+        </div>
+
+        <main class="survey-card">
         <header class="header-row">
           <button v-if="currentIndex > 0" class="icon-button" @click="back" aria-label="Back">
             ‹
@@ -66,64 +119,119 @@ const getAnswerLabel = (value: 'yes' | 'no' | null) => {
           <p class="eyebrow">Delivery update</p>
           <h1>{{ currentQuestion.text }}</h1>
 
-          <div class="answer-group">
+          <div v-if="currentQuestion.type === 'rating'" class="answer-group rating-group" role="radiogroup" :aria-label="currentQuestion.text">
             <button
-              class="answer-button"
-              :class="{ selected: answers[currentQuestion.id] === 'yes' }"
-              @click="setAnswer('yes')"
+              v-for="star in starOptions"
+              :key="star"
+              type="button"
+              class="star-button"
+              :class="{ active: Number(answers[currentQuestion.id] ?? 0) >= star }"
+              :aria-label="`Rate ${star} out of 5`"
+              @click="setAnswer(star)"
             >
-              Yes
-            </button>
-            <button
-              class="answer-button"
-              :class="{ selected: answers[currentQuestion.id] === 'no' }"
-              @click="setAnswer('no')"
-            >
-              No
+              <span aria-hidden="true">★</span>
             </button>
           </div>
 
-          <label class="comment-label" :for="`comment-${currentQuestion.id}`">Optional comment</label>
-          <textarea
-            :id="`comment-${currentQuestion.id}`"
-            v-model="comments[currentQuestion.id]"
-            :placeholder="currentQuestion.placeholder"
-            rows="4"
-          />
+          <div v-else-if="currentQuestion.type === 'shareExperience'" class="share-experience-layout">
+            <div class="review-summary">
+              <h2>Quick review</h2>
+              <ul>
+                <li v-for="entry in reviewEntries" :key="entry.id">
+                  <span>{{ entry.label }}</span>
+                  <strong>{{ entry.value }}</strong>
+                </li>
+              </ul>
+            </div>
+
+            <div class="upload-box">
+              <label class="upload-label" for="product-photo">Upload a picture of your product</label>
+              <label class="upload-button" for="product-photo">
+                <input id="product-photo" type="file" accept="image/*" @change="handleImageUpload" />
+                <span>{{ uploadedImage ? 'Change photo' : 'Add photo' }}</span>
+              </label>
+
+              <div v-if="uploadedImage" class="image-preview">
+                <img :src="uploadedImage" alt="Uploaded product preview" />
+              </div>
+              <p v-if="productPhotoName" class="upload-filename">{{ productPhotoName }}</p>
+            </div>
+
+            <div class="ai-summary-box">
+              <h3>AI summary</h3>
+              <p>{{ aiSummary }}</p>
+            </div>
+
+            <label class="comment-label" :for="`comment-${currentQuestion.id}`">Optional personal review</label>
+            <textarea
+              :id="`comment-${currentQuestion.id}`"
+              v-model="comments[currentQuestion.id]"
+              placeholder="Add your own review to help future shoppers"
+              rows="4"
+            />
+          </div>
+
+          <div v-else class="answer-group selector-group">
+            <button
+              class="selector-option"
+              :class="{ selected: answers[currentQuestion.id] === 'yes' }"
+              @click="setAnswer('yes')"
+            >
+              <span class="selector-content">
+                <span class="selector-icon success" :class="{ active: answers[currentQuestion.id] === 'yes' }">
+                  ✓
+                </span>
+                <span class="selector-label">Yes</span>
+              </span>
+            </button>
+            <button
+              class="selector-option"
+              :class="{ selected: answers[currentQuestion.id] === 'no' }"
+              @click="setAnswer('no')"
+            >
+              <span class="selector-content">
+                <span class="selector-icon danger" :class="{ active: answers[currentQuestion.id] === 'no' }">
+                  ✕
+                </span>
+                <span class="selector-label">No</span>
+              </span>
+            </button>
+          </div>
+
+          <template v-if="currentQuestion.type !== 'shareExperience'">
+            <label class="comment-label" :for="`comment-${currentQuestion.id}`">Optional comment</label>
+            <textarea
+              :id="`comment-${currentQuestion.id}`"
+              v-model="comments[currentQuestion.id]"
+              :placeholder="currentQuestion.placeholder"
+              rows="4"
+            />
+          </template>
         </section>
 
         <div class="footer-actions">
-          <button class="secondary-btn" :disabled="currentIndex === 0" @click="back">Back</button>
+          <button v-if="currentIndex > 0" class="secondary-btn" @click="back">Back</button>
           <button
             v-if="!isLastStep"
             class="primary-btn"
+            :class="{ full: currentIndex === 0 }"
             :disabled="!answers[currentQuestion.id]"
             @click="next"
           >
             Next
           </button>
-          <button v-else class="primary-btn" :disabled="!answers[currentQuestion.id]" @click="shareFeedback">
+          <button
+            v-else
+            class="primary-btn"
+            :disabled="!allRequiredAnswered"
+            @click="shareFeedback"
+          >
             Share
           </button>
         </div>
       </main>
 
-      <aside class="summary-panel" aria-live="polite">
-        <div class="summary-header">Delivery status</div>
-        <ul>
-          <li v-for="step in metrics.deliveryStatus.steps" :key="step.label" :class="step.state">
-            <span class="dot" />
-            <span>{{ step.label }}</span>
-          </li>
-        </ul>
-
-        <div class="mini-review">
-          <h2>Quick review</h2>
-          <p v-for="question in questions" :key="question.id">
-            {{ question.text }} — {{ getAnswerLabel(answers[question.id] ?? null) }}
-          </p>
-        </div>
-      </aside>
+      </div>
     </div>
   </div>
 </template>
@@ -132,7 +240,7 @@ const getAnswerLabel = (value: 'yes' | 'no' | null) => {
 :global(body) {
   margin: 0;
   font-family: 'Segoe UI', Tahoma, sans-serif;
-  background: linear-gradient(135deg, #1d4ed8, #2563eb 55%, #1e40af);
+  background: #f5f4f3;
 }
 
 * {
@@ -152,12 +260,97 @@ textarea {
   padding: 32px;
 }
 
+.app-shell {
+  width: min(100%, 480px);
+}
+
+.top-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 10px 18px;
+  background: #ffffff;
+  border-radius: 18px 18px 0 0;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(2px);
+}
+
+.nav-icon {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.menu-icon {
+  width: 36px;
+  height: 36px;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.menu-icon span {
+  width: 18px;
+  height: 2px;
+  border-radius: 999px;
+  background: #111827;
+  display: block;
+}
+
+.brand-lockup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #111827;
+  font-weight: 700;
+}
+
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #4f8ff7, #2563eb);
+  color: #ffffff;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.brand-text {
+  font-size: 1.05rem;
+  letter-spacing: -0.04em;
+}
+
+.avatar-icon {
+  width: 36px;
+  height: 36px;
+}
+
+.avatar-circle {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #e5e7eb, #d1d5db);
+  color: #111827;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+  aspect-ratio: 1;
+}
+
 .phone-frame {
   width: min(100%, 430px);
   background: #f7f7f7;
-  border-radius: 36px;
+  border-radius: 0 0 36px 36px;
   padding: 18px 18px 14px;
-  box-shadow: 0 28px 60px rgba(15, 23, 42, 0.25);
+  box-shadow: 0 18px 34px rgba(17, 24, 39, 0.08);
 }
 
 .status-bar {
@@ -265,7 +458,7 @@ textarea {
 
 .progress-bar {
   height: 100%;
-  background: linear-gradient(90deg, #4f46e5, #2563eb);
+  background: linear-gradient(90deg, #60a5fa, #2563eb);
   border-radius: inherit;
 }
 
@@ -295,22 +488,211 @@ textarea {
   margin-bottom: 18px;
 }
 
-.answer-button {
-  border: 1px solid #d1d5db;
+.selector-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin: 8px 0 22px;
+  max-width: 100%;
+}
+
+.selector-option {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 110px;
+  border: 1px solid #e5e7eb;
   background: #f3f4f6;
   color: #111827;
-  border-radius: 16px;
-  padding: 14px 12px;
-  font-weight: 600;
+  border-radius: 22px;
+  padding: 14px 16px;
+  font-weight: 700;
+  font-size: clamp(1rem, 2.2vw, 1.5rem);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
-.answer-button.selected {
-  background: #2563eb;
-  color: white;
-  border-color: #2563eb;
-  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.2);
+.selector-option.selected {
+  background: rgba(37, 99, 235, 0.12);
+  color: #2563eb;
+  border-color: rgba(37, 99, 235, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.08);
+}
+
+.selector-content {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  width: 100%;
+}
+
+.selector-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 1.45rem;
+  font-weight: 800;
+  background: rgba(17, 24, 39, 0.08);
+  color: #111827;
+  line-height: 1;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.selector-icon.success {
+  color: #111827;
+}
+
+.selector-icon.danger {
+  color: #111827;
+}
+
+.selector-option.selected .selector-icon {
+  background: rgba(37, 99, 235, 0.12);
+  color: #2563eb;
+}
+
+.selector-label {
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.rating-group {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  grid-template-columns: none;
+  margin: 10px 0 26px;
+}
+
+.star-button {
+  width: 52px;
+  height: 52px;
+  border: none;
+  background: transparent;
+  color: #d1d5db;
+  font-size: clamp(2.2rem, 5vw, 3.2rem);
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+  transition: transform 0.18s ease, color 0.18s ease;
+}
+
+.star-button:hover {
+  transform: translateY(-2px);
+}
+
+.star-button.active {
+  color: #fbbf24;
+  text-shadow: 0 0 16px rgba(251, 191, 36, 0.35);
+}
+
+.share-experience-layout {
+  display: grid;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.review-summary,
+.upload-box,
+.ai-summary-box {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 14px 16px;
+}
+
+.review-summary h2,
+.ai-summary-box h3 {
+  margin: 0 0 10px;
+  font-size: 1rem;
+  color: #111827;
+}
+
+.review-summary ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.review-summary li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.82rem;
+  color: #374151;
+  line-height: 1.4;
+}
+
+.review-summary li strong {
+  color: #111827;
+  font-size: 0.78rem;
+  text-align: right;
+}
+
+.upload-label {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 10px;
+}
+
+.upload-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  border: 1px dashed #94a3b8;
+  border-radius: 12px;
+  background: white;
+  padding: 12px 14px;
+  cursor: pointer;
+  color: #1f2937;
+  font-weight: 600;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.upload-button:hover {
+  background: #f3f4f6;
+  border-color: #64748b;
+}
+
+.upload-button input {
+  display: none;
+}
+
+.image-preview {
+  margin-top: 12px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #e5e7eb;
+}
+
+.image-preview img {
+  display: block;
+  width: 100%;
+  max-height: 170px;
+  object-fit: cover;
+}
+
+.upload-filename {
+  margin: 10px 0 0;
+  font-size: 0.8rem;
+  color: #4b5563;
+}
+
+.ai-summary-box p {
+  margin: 0;
+  color: #374151;
+  line-height: 1.5;
+  font-size: 0.84rem;
 }
 
 .comment-label {
@@ -362,8 +744,12 @@ textarea:focus {
 
 .primary-btn {
   flex: 1.5;
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
   color: white;
+}
+
+.primary-btn.full {
+  flex: 1;
 }
 
 .primary-btn:disabled,
@@ -374,16 +760,16 @@ textarea:focus {
 
 .summary-panel {
   margin-top: 18px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(17, 24, 39, 0.02);
   border-radius: 20px;
   padding: 14px 12px;
-  color: #dbeafe;
+  color: #374151;
 }
 
 .summary-header {
   font-weight: 700;
   margin-bottom: 10px;
-  color: #eff6ff;
+  color: #111827;
 }
 
 .summary-panel ul {
@@ -398,46 +784,47 @@ textarea:focus {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #dbeafe;
-  opacity: 0.8;
+  color: #374151;
+  opacity: 0.9;
 }
 
 .summary-panel li.current {
   opacity: 1;
   font-weight: 600;
+  color: #111827;
 }
 
 .dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #93c5fd;
+  background: #4b5563;
   display: inline-block;
 }
 
 .summary-panel li.complete .dot {
-  background: #34d399;
+  background: #16a34a;
 }
 
 .summary-panel li.current .dot {
-  background: #fbbf24;
+  background: #16a34a;
 }
 
 .mini-review {
   margin-top: 18px;
   padding-top: 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  border-top: 1px solid rgba(17, 24, 39, 0.12);
 }
 
 .mini-review h2 {
   margin: 0 0 8px;
   font-size: 1rem;
-  color: #eff6ff;
+  color: #111827;
 }
 
 .mini-review p {
   margin: 0 0 6px;
-  color: #dbeafe;
+  color: #374151;
   font-size: 0.82rem;
   line-height: 1.45;
 }

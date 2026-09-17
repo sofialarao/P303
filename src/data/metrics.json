@@ -42,13 +42,13 @@
         "id": "productCondition",
         "text": "Was the product in good condition?",
         "placeholder": "Describe the item condition when it arrived",
-        "type": "yesNo"
+        "type": "rating"
       },
       {
-        "id": "overallExperience",
-        "text": "How would you describe your overall delivery experience?",
-        "placeholder": "Optional: share your thoughts",
-        "type": "yesNo"
+        "id": "shareExperience",
+        "text": "Share your experience",
+        "placeholder": "Add your own review to help future shoppers",
+        "type": "shareExperience"
       }
     ]
   },
