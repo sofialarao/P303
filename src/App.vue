@@ -23,6 +23,7 @@ const reviewEntries = computed(() =>
   questions.slice(0, -1).map((question) => ({
     id: question.id,
     label: question.text,
+    answer: answers.value[question.id] ?? null,
     value: getAnswerLabel(answers.value[question.id] ?? null),
   })),
 )
@@ -101,6 +102,7 @@ const getAnswerLabel = (value: 'yes' | 'no' | number | null) => {
         </header>
 
         <main class="survey-card">
+        <h1 class="page-title">Share your experience</h1>
         <div class="product-header-image">
           <img src="https://images.unsplash.com/photo-1572635196237-14b3f281503f?auto=format&fit=crop&w=1200&q=80" alt="Ray-Ban style sunglasses product" />
         </div>
@@ -122,7 +124,7 @@ const getAnswerLabel = (value: 'yes' | 'no' | number | null) => {
         </div>
 
         <section class="question-panel">
-          <h1>{{ currentQuestion.text }}</h1>
+          <h1 v-if="currentQuestion.type !== 'shareExperience'">{{ currentQuestion.text }}</h1>
 
           <div v-if="currentQuestion.type === 'rating'" class="answer-group rating-group" role="radiogroup" :aria-label="currentQuestion.text">
             <button
@@ -144,7 +146,17 @@ const getAnswerLabel = (value: 'yes' | 'no' | number | null) => {
               <ul>
                 <li v-for="entry in reviewEntries" :key="entry.id">
                   <span>{{ entry.label }}</span>
-                  <strong>{{ entry.value }}</strong>
+                  <strong v-if="entry.answer === 'yes'" class="review-icon review-icon-success" aria-label="Yes">✓</strong>
+                  <strong v-else-if="entry.answer === 'no'" class="review-icon review-icon-danger" aria-label="No">✕</strong>
+                  <span v-else-if="typeof entry.answer === 'number'" class="review-stars" :aria-label="entry.value">
+                    <span
+                      v-for="star in starOptions"
+                      :key="star"
+                      :class="{ active: entry.answer >= star }"
+                      aria-hidden="true"
+                    >★</span>
+                  </span>
+                  <strong v-else>{{ entry.value }}</strong>
                 </li>
               </ul>
             </div>
@@ -268,7 +280,7 @@ textarea {
 .page-shell {
   height: 100vh;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   padding: 32px 32px 40px;
   overflow: hidden;
@@ -279,6 +291,9 @@ textarea {
 }
 
 .top-nav {
+  position: sticky;
+  top: 0;
+  z-index: 10;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -361,8 +376,14 @@ textarea {
 }
 
 .phone-frame {
+  position: fixed;
+  top: 32px;
+  bottom: 40px;
+  left: 50%;
   width: min(100%, 393px);
-  height: min(852px, calc(100vh - 72px));
+  height: auto;
+  max-height: none;
+  transform: translateX(-50%);
   min-height: 0;
   background: #f7f7f7;
   border-radius: 36px;
@@ -374,9 +395,17 @@ textarea {
 .survey-card {
   background: #ffffff;
   border-radius: 26px;
-  margin: 0 24px;
+  margin: 0 24px 24px;
   padding: 24px 24px 18px;
   box-shadow: inset 0 0 0 1px rgba(17, 24, 39, 0.05);
+}
+
+.page-title {
+  margin: 0 0 18px;
+  text-align: left;
+  font-size: 1.05rem;
+  line-height: 1.2;
+  color: #111827;
 }
 
 .header-row {
@@ -645,6 +674,31 @@ textarea {
   color: #111827;
   font-size: 0.78rem;
   text-align: right;
+}
+
+.review-icon {
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.review-icon-success {
+  color: #16a34a;
+}
+
+.review-icon-danger {
+  color: #dc2626;
+}
+
+.review-stars {
+  display: inline-flex;
+  gap: 2px;
+  color: #d1d5db;
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.review-stars .active {
+  color: #fbbf24;
 }
 
 .upload-label {
