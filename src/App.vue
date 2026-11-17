@@ -27,13 +27,6 @@ const reviewEntries = computed(() =>
     value: getAnswerLabel(answers.value[question.id] ?? null),
   })),
 )
-const stepperSteps = computed(() =>
-  questions.map((question, index) => ({
-    id: question.id,
-    active: index === currentIndex.value,
-    complete: index < currentIndex.value,
-  })),
-)
 const aiSummary = computed(() => {
   const answered = reviewEntries.value
     .map((entry) => `${entry.label}: ${entry.value}`)
